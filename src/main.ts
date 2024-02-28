@@ -10,6 +10,8 @@ type Node = {
   y: number;
   width: number;
   height: number;
+  edges: Edge[];
+  value: number;
 }
 type Edge = {
   id: string;
@@ -51,7 +53,7 @@ async function loadGraphML(url:string) {
       const x = (geometry ? parseFloat(geometry.getAttribute("x")!) : 0) + width / 2;
       const y = (geometry ? parseFloat(geometry.getAttribute("y")!) : 0) + height / 2;
 
-      const node = { id, color, size, label, x, y, width, height } as Node;
+      const node = { id, color, size, label, x, y, width, height, edges: [], value: 0 } as Node;
       nodeLookup.set(id, node);
       return node;
     });
@@ -59,8 +61,10 @@ async function loadGraphML(url:string) {
     // Extract edges
     const edges:Edge[] = Array.from(xmlDoc.getElementsByTagName("edge")).map(e => {
       const id = e.getAttribute("id");
-      const source = e.getAttribute("source")!;
-      const target = e.getAttribute("target")!;       
+      const source = e.getAttribute("source")!,
+            target = e.getAttribute("target")!,
+            sourceNode = nodeLookup.get(source)!,
+            targetNode = nodeLookup.get(target)!;
       const yNamespaceURI = 'http://www.yworks.com/xml/graphml';
       const innerPoints = Array.from(e.getElementsByTagNameNS(yNamespaceURI, "Point")).map(point => ({
           x: parseFloat(point.getAttribute("x")!),
@@ -68,8 +72,13 @@ async function loadGraphML(url:string) {
       }));
       
       const value = parseFloat(e.querySelector("data[key='d12']")!.textContent || '1');
-      const points = [{ x: nodeLookup.get(source)!.x, y: nodeLookup.get(source)!.y }, ...innerPoints, { x: nodeLookup.get(target)!.x, y: nodeLookup.get(target)!.y }];
-      return { id, source: nodeLookup.get(source)!, target: nodeLookup.get(target)!, points, value } as Edge;
+      const points = [{ x: sourceNode.x, y: sourceNode.y }, ...innerPoints, { x: targetNode.x, y: targetNode.y }];
+      const edge = { id, source: sourceNode, target: targetNode, points, value } as Edge;
+      sourceNode.edges.push(edge);
+      targetNode.edges.push(edge);
+      sourceNode.value += value;
+      targetNode.value += value;
+      return edge;
     });
 
     // Draw with D3
@@ -83,13 +92,21 @@ async function loadGraphML(url:string) {
       .style("position", "absolute")
       .style("visibility", "hidden");
 
-    const minValue = Math.min(...edges.map(e => e.value)), maxValue = Math.max(...edges.map(e => e.value));
-    const minThickness = 1, maxThickness = 10;
-    const edgeThicknessScale = d3.scaleLog().domain([minValue, maxValue]).range([minThickness, maxThickness]);
+    const minThickness = 1, maxThickness = 40;
+    const edgeThicknessScale = 
+      d3.scaleSqrt()
+        .domain([Math.min(...edges.map(e => e.value)), Math.max(...edges.map(e => e.value))])
+        .range([minThickness, maxThickness]);
+
+    const minNodeRadius = 15, maxNodeRadius = 40;
+    const nodeSizeScale =
+      d3.scaleSqrt()
+        .domain([Math.min(...nodes.map(n => n.value)), Math.max(...nodes.map(n => n.value))])
+        .range([minNodeRadius, maxNodeRadius]);
 
     function hoverNode(event: { pageX: string; pageY: string; }, node: Node) {
       // Get the edges connected to the node
-      const connectedEdges = edges.filter(edge => edge.source.id === node.id || edge.target.id === node.id);
+      const connectedEdges = node.edges;
       connectedEdges.sort((a, b) => b.value - a.value);
       const neighborNodes = [node].concat(connectedEdges.map(edge => edge.source.id === node.id ? edge.target : edge.source));
 
@@ -157,12 +174,10 @@ async function loadGraphML(url:string) {
         .attr("width", width / connectedEdges.length - barPadding)
         .attr("height", d => logScale(d.value) * height)
         .attr("fill", "blue"); // Adjust color as needed
-      // Calculate the total value
-      const totalValue = connectedEdges.reduce((sum, edge) => sum + edge.value, 0);
 
       // Add text for the total value
       barChartContainer.append("p")
-          .text("Total: $" + totalValue.toLocaleString())
+          .text("Total: $" + node.value.toLocaleString())
           .style("text-align", "center");
           
       // Position the bar chart container at the cursor position
@@ -203,6 +218,7 @@ async function loadGraphML(url:string) {
       .attr("stroke-width", d => edgeThicknessScale(d.value))
       .attr("fill", "none");
 
+      
     // Draw nodes
     nodeContainer.selectAll("circle")
     .data(nodes)
@@ -211,7 +227,7 @@ async function loadGraphML(url:string) {
     .attr("class", "node")
     .attr("cx", d => d.x)
     .attr("cy", d => d.y)
-    .attr("r", d => d.width / 2)
+    .attr("r", d => nodeSizeScale(d.value))
     .attr("fill", d => d.color)
     .on("mouseover", hoverNode)
     .on("mouseout", unhover);
