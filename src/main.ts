@@ -75,6 +75,8 @@ async function loadGraphML(url:string) {
     // Draw with D3
     const svg = d3.select("svg");
     const container = svg.append("g");
+    const edgeContainer = container.append("g");
+    const nodeContainer = container.append("g");
 
     const barChartContainer = d3.select("body").append("div")
       .attr("class", "bar-chart-container")
@@ -89,11 +91,27 @@ async function loadGraphML(url:string) {
       // Get the edges connected to the node
       const connectedEdges = edges.filter(edge => edge.source.id === node.id || edge.target.id === node.id);
       connectedEdges.sort((a, b) => b.value - a.value);
+      const neighborNodes = [node].concat(connectedEdges.map(edge => edge.source.id === node.id ? edge.target : edge.source));
 
       // Highlight edges
-      container.selectAll('path.edge')
-        .filter(edge => connectedEdges.includes(edge))
-        .classed('highlight', true);
+      const highlightedEdges = edgeContainer.selectAll('path.edge')
+          .filter(edge => connectedEdges.includes(<Edge>edge))
+          .classed('highlight', true);
+
+      highlightedEdges.each(function() {
+          // Select the current edge
+          const edge = d3.select(this);
+          // Append the edge to its parent to bring it to the top
+          const parentNode = (edge.node() as Element)?.parentNode;
+          if (parentNode) {
+            parentNode.appendChild(edge.node() as Element);
+          }
+      });
+
+      // Highlight neighbor nodes
+      nodeContainer.selectAll('circle.node')
+          .filter(node => neighborNodes.includes(<Node>node))
+          .classed('highlight', true);
 
       // Clear any existing content in the bar chart container
       barChartContainer.html("");
@@ -156,13 +174,15 @@ async function loadGraphML(url:string) {
 
     function unhover() {      
       // Remove edge highlight
-      container.selectAll('path.edge')
+      edgeContainer.selectAll('path.edge')
+        .classed('highlight', false);
+      nodeContainer.selectAll('circle.node')
         .classed('highlight', false);
       // Hide the bar chart container
       barChartContainer.style("visibility", "hidden");
     }
     // Draw edges
-    container.selectAll("path.edge")
+    edgeContainer.selectAll("path.edge")
       .data(edges)
       .enter()
       .append("path")
@@ -178,16 +198,17 @@ async function loadGraphML(url:string) {
           });
           return path.toString();
       })
-      .attr("stroke", "#000")
+      .attr("stroke", d => d.target.color)
       .attr("stroke-opacity", 0.35) // Adjust the opacity as needed
       .attr("stroke-width", d => edgeThicknessScale(d.value))
       .attr("fill", "none");
 
     // Draw nodes
-    container.selectAll("circle")
+    nodeContainer.selectAll("circle")
     .data(nodes)
     .enter()
     .append("circle")
+    .attr("class", "node")
     .attr("cx", d => d.x)
     .attr("cy", d => d.y)
     .attr("r", d => d.width / 2)
@@ -197,7 +218,7 @@ async function loadGraphML(url:string) {
 
     // Add labels
     const textSize = 10; // Adjust text size as needed
-    const textElements = container.selectAll("text")
+    const textElements = nodeContainer.selectAll("text")
       .data(nodes)
       .enter()
       .append("text")
