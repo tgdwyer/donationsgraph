@@ -1,4 +1,61 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    object {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      max-width: 100vw;
+      /* 100% of the viewport width */
+      max-height: 100vh;
+      /* 100% of the viewport height */
+    }
+
+    text {
+      font-family: 'Roboto', sans-serif;
+    }
+
+    .bar-chart-container {
+      border: 1px solid #ccc;
+      background-color: #fff;
+      padding: 5px;
+      border-radius: 5px;
+      box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+    }
+    .bar-chart-container h1 {
+      text-align: center;
+      font-size: 10px; /* Adjust the value as needed */
+      font-family: 'Roboto', sans-serif;
+    }
+    .bar-chart-container p {
+      font-size: 8px; /* Adjust the value as needed */
+      font-family: 'Roboto', sans-serif;
+    }
+
+    .edge.highlight {
+      stroke: rgb(255, 111, 0);
+    }
+  </style>
+</head>
+
 <body>
-    <object type="image/svg+xml" data="data/donations_yed_2019.svg">
-    </object>
+  <div id="app"></div>
+  <!-- <object id="svg-object" type="image/svg+xml" data="data/donations_yed_2019.svg">
+  </object> -->
+  <svg width="1200" height="1000"></svg>
+  <script type="module" src="/src/main.ts"></script>
 </body>
+
+</html>
