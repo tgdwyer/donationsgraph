@@ -68,7 +68,6 @@ async function loadGraphML(url:string) {
       }));
       
       const value = parseFloat(e.querySelector("data[key='d12']")!.textContent || '1');
-      console.log(value)
       const points = [{ x: nodeLookup.get(source)!.x, y: nodeLookup.get(source)!.y }, ...innerPoints, { x: nodeLookup.get(target)!.x, y: nodeLookup.get(target)!.y }];
       return { id, source: nodeLookup.get(source)!, target: nodeLookup.get(target)!, points, value } as Edge;
     });
@@ -181,10 +180,7 @@ async function loadGraphML(url:string) {
       })
       .attr("stroke", "#000")
       .attr("stroke-opacity", 0.35) // Adjust the opacity as needed
-      .attr("stroke-width", d => {
-        const thickness = edgeThicknessScale(d.value)
-        console.log(d.value,thickness)
-        return thickness})
+      .attr("stroke-width", d => edgeThicknessScale(d.value))
       .attr("fill", "none");
 
     // Draw nodes
@@ -212,9 +208,10 @@ async function loadGraphML(url:string) {
       .style("pointer-events", "none");
   
     textElements.each(function(d) {
-      const lines = d.label.split("\n"); // Split the label by line breaks
-      const lineHeight = textSize; // Adjust line height as needed
-      const yOffset = textSize/3-(lines.length - 1) * lineHeight / 2; // Center the text block vertically
+      const 
+        lines = d.label.split("\n"),
+        lineHeight = textSize,
+        yOffset = textSize/3-(lines.length - 1) * lineHeight / 2; // Center the text block vertically
   
       lines.forEach((line, i) => {
           d3.select(this)
@@ -225,27 +222,32 @@ async function loadGraphML(url:string) {
       });
     });
 
-    const border = 50;
-    const maxX = nodes.reduce((max, node) => Math.max(max, node.x + node.width/2), 0)+border;
-    const maxY = nodes.reduce((max, node) => Math.max(max, node.y + node.height/2), 0)+border;
-    const minX = nodes.reduce((min, node) => Math.min(min, node.x - node.width/2), 0)-border;
-    const minY = nodes.reduce((min, node) => Math.min(min, node.y - node.height/2), 0)-border;
-    const graphWidth = maxX - minX;
-    const graphHeight = maxY - minY;
-    svg.attr('width', graphWidth);
-    svg.attr('height', graphHeight);
-    // Calculate the initial scale factor
-    const scaleX = window.innerWidth / graphWidth;
-    const scaleY = window.innerHeight / graphHeight;
-    const initialScale = Math.min(scaleX, scaleY);
+    const 
+      border = 50,
+      maxX = nodes.reduce((max, node) => Math.max(max, node.x + node.width/2), 0)+border,
+      maxY = nodes.reduce((max, node) => Math.max(max, node.y + node.height/2), 0)+border,
+      minX = nodes.reduce((min, node) => Math.min(min, node.x - node.width/2), 0)-border,
+      minY = nodes.reduce((min, node) => Math.min(min, node.y - node.height/2), 0)-border,
+      graphWidth = maxX - minX,
+      graphHeight = maxY - minY,
+      scaleX = window.innerWidth / graphWidth,
+      scaleY = window.innerHeight / graphHeight,
+      initialScale = Math.min(scaleX, scaleY),
+      tx = (window.innerWidth - graphWidth * initialScale)/2 - minX * initialScale,
+      ty = (window.innerHeight - graphHeight * initialScale)/2 - minY * initialScale;
+    
+    svg
+      .attr('width', graphWidth)
+      .attr('height', graphHeight);
+    
     // Define the zoom behavior
     const zoom = d3.zoom()
       //.scaleExtent([1, 10]) // Adjust scale extent as needed
       .on('zoom', (event) => {
         container.attr('transform', event.transform);
-      });
+      }); 
     // Apply the zoom behavior to the SVG
-    svg.call(zoom).call(zoom.transform, d3.zoomIdentity.translate(-minX*initialScale,-minY*initialScale).scale(initialScale))
+    svg.call(zoom).call(zoom.transform, d3.zoomIdentity.translate(tx,ty).scale(initialScale))
 
 
   } catch (error) {
