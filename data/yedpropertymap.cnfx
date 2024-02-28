@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<styles>
+  <style name="New Configuration" scope="node" selectionOnly="false">
+    <mapping>
+      <source name="label" origin="customProperty" type="string"/>
+      <target name="labelText" type="string">
+        <hints/>
+      </target>
+      <conversion type="asIs"/>
+    </mapping>
+  </style>
+  <style name="New Configuration" scope="edge" selectionOnly="false">
+    <mapping>
+      <source name="thickness" origin="customProperty" type="double"/>
+      <target name="lineWidth" type="double">
+        <hints/>
+      </target>
+      <conversion type="linear">
+        <linear>
+          <min>1.0001010977446456</min>
+          <minResult>1.0</minResult>
+          <max>1.0108296119165896</max>
+          <maxResult>10.0</maxResult>
+        </linear>
+      </conversion>
+    </mapping>
+  </style>
+</styles>
