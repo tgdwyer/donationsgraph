@@ -69,8 +69,9 @@ replacements = {
 }
 
 # Federal election year 2022-23
-filtered_df = df[df['Financial Year'] == '2021-22'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
+#filtered_df = df[df['Financial Year'] == '2021-22'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
 #filtered_df = df[df['Financial Year'] == '2018-19'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
+filtered_df = df[df['Financial Year'] == '2022-23'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
 
 for pattern, replacement in replacements.items():
     filtered_df['Donation Made To'] = filtered_df['Donation Made To'].str.replace(r'(?i).*' + pattern + '.*', replacement, regex=True)
@@ -91,8 +92,8 @@ total_donations = {**donations_given, **donations_received}  # Merge two diction
 min_size, max_size = 10, 100  # Adjust for yEd size compatibility
 size_range = max_size - min_size
 min_donation, max_donation = min(total_donations.values()), max(total_donations.values())
-log_min_donation, log_max_donation = np.log(min_donation), np.log(max_donation)
-scaled_sizes = {node: min_size + (size_range * ((np.log(total_donations.get(node, 0)) - log_min_donation) / (log_max_donation - log_min_donation))) for node in G.nodes()}
+sqrt_min_donation, sqrt_max_donation = np.sqrt(min_donation), np.sqrt(max_donation)
+scaled_sizes = {node: min_size + (size_range * ((np.sqrt(total_donations.get(node, 0)) - sqrt_min_donation) / (sqrt_max_donation - sqrt_min_donation))) for node in G.nodes()}
 
 # Normalize edge weights for thickness
 all_weights = [data['weight'] for _, _, data in G.edges(data=True)]
