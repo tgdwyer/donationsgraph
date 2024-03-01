@@ -293,6 +293,7 @@ async function loadGraphML(url:string) {
 }
 
 // Load the GraphML file
+//loadGraphML("data/donations_yed_2015.graphml");
 loadGraphML("data/donations_yed_2023.graphml");
 
 // const svgObj = document.getElementById('svg-object');

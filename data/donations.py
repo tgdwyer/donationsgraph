@@ -71,7 +71,9 @@ replacements = {
 # Federal election year 2022-23
 #filtered_df = df[df['Financial Year'] == '2021-22'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
 #filtered_df = df[df['Financial Year'] == '2018-19'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
-filtered_df = df[df['Financial Year'] == '2022-23'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
+#filtered_df = df[df['Financial Year'] == '2022-23'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
+filtered_df = df[df['Financial Year'] == '2014-15'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
+
 
 for pattern, replacement in replacements.items():
     filtered_df['Donation Made To'] = filtered_df['Donation Made To'].str.replace(r'(?i).*' + pattern + '.*', replacement, regex=True)
