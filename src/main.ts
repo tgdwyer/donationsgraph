@@ -293,58 +293,8 @@ async function loadGraphML(url:string) {
 }
 
 // Load the GraphML file
-loadGraphML("data/donations_yed_2015.graphml");
-//loadGraphML("data/donations_yed_2023.graphml");
+const urlParams = new URLSearchParams(window.location.search);
+const year = urlParams.get('year') || "2015"; 
 
-// const svgObj = document.getElementById('svg-object');
-// if (svgObj === null) {
-//   throw new Error('SVG object not found');
-// }
-// svgObj.addEventListener('load', function() {
-//   console.log('SVG loaded')
-//   const svgDoc = this.contentDocument; // Get the SVG document
-  
-//   const d3svg = d3.select(svgDoc).select('svg'); // Use D3 to select the SVG document
-//   const container = d3svg.select('g'); // Select the <g> element
-//   d3svg.selectAll("text")
-//   .style("pointer-events", "none");
+loadGraphML(`data/donations_yed_${year}.graphml`);
 
-//   //container.attr('transform', `translate(0,0) scale(${window.innerWidth/getWidth(svgDoc)})`);
-//   // Define the zoom behavior
-//   const zoom = d3.zoom()
-//     //.scaleExtent([1, 10]) // Adjust scale extent as needed
-//     .on('zoom', (event) => {
-//       container.attr('transform', event.transform);
-//     });
-//   // Apply the zoom behavior to the SVG
-//   d3svg.call(zoom).call(zoom.transform, d3.zoomIdentity.scale(window.innerWidth/getWidth(svgDoc)))
-
-//   d3svg.selectAll('circle')
-//       .on('mouseenter', function() {
-//           d3.select(this).attr('r', function() {
-//               const currentRadius = parseFloat(d3.select(this).attr('r'));
-//               return currentRadius + 5; // Increase radius by 5 on hover
-//           });
-//       })
-//       .on('mouseleave', function() {
-//           d3.select(this).attr('r', function() {
-//               const currentRadius = parseFloat(d3.select(this).attr('r'));
-//               return currentRadius - 5; // Decrease radius back to original on mouse leave
-//           });
-//       });
-// });
-
-// function getWidth(d) {
-//   var svgObject = document.getElementById('svg-object');
-//   var svgDocument = svgObject.contentDocument;
-
-//   if (svgDocument) {
-//       var svgElement = svgDocument.documentElement;
-//       var bbox = svgElement.getBBox();
-//       return bbox.width;
-//   }
-//   return 0;
-// }
-
-// window.addEventListener('resize', resizeSVG);
-// window.addEventListener('load', resizeSVG);
