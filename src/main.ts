@@ -169,7 +169,7 @@ async function loadGraphML(url:string) {
         .data(connectedEdges)
         .enter()
         .append("rect")
-        .attr("x", (d, i) => i * (width / connectedEdges.length))
+        .attr("x", (_, i) => i * (width / connectedEdges.length))
         .attr("y", d => height - logScale(d.value)) // Normalize height based on max value
         .attr("width", width / connectedEdges.length - barPadding)
         .attr("height", d => logScale(d.value) * height)
@@ -274,8 +274,8 @@ async function loadGraphML(url:string) {
       ty = (window.innerHeight - graphHeight * initialScale)/2 - minY * initialScale;
     
     svg
-      .attr('width', graphWidth)
-      .attr('height', graphHeight);
+      .attr('width', window.innerWidth)
+      .attr('height', window.innerHeight);
     
     // Define the zoom behavior
     const zoom = d3.zoom()
@@ -284,7 +284,7 @@ async function loadGraphML(url:string) {
         container.attr('transform', event.transform);
       }); 
     // Apply the zoom behavior to the SVG
-    svg.call(zoom).call(zoom.transform, d3.zoomIdentity.translate(tx,ty).scale(initialScale))
+    svg.call(<any>zoom).call(<any>zoom.transform, d3.zoomIdentity.translate(tx,ty).scale(initialScale))
 
 
   } catch (error) {
@@ -293,8 +293,8 @@ async function loadGraphML(url:string) {
 }
 
 // Load the GraphML file
-//loadGraphML("data/donations_yed_2015.graphml");
-loadGraphML("data/donations_yed_2023.graphml");
+loadGraphML("data/donations_yed_2015.graphml");
+//loadGraphML("data/donations_yed_2023.graphml");
 
 // const svgObj = document.getElementById('svg-object');
 // if (svgObj === null) {
