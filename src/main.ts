@@ -271,7 +271,7 @@ async function loadGraphML(url:string) {
       scaleY = window.innerHeight / graphHeight,
       initialScale = Math.min(scaleX, scaleY),
       tx = (window.innerWidth - graphWidth * initialScale)/2 - minX * initialScale,
-      ty = (window.innerHeight - graphHeight * initialScale)/2 - minY * initialScale;
+      ty = (window.innerHeight - graphHeight * initialScale)/2 + minY * initialScale;
     
     svg
       .attr('width', window.innerWidth)
