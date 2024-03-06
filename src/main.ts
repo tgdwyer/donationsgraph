@@ -261,17 +261,17 @@ async function loadGraphML(url:string) {
 
     const 
       border = 50,
-      maxX = nodes.reduce((m, node) => Math.max(m, node.x + node.width/2), 0)+border,
-      maxY = nodes.reduce((m, node) => Math.max(m, node.y + node.height/2), 0)+border,
-      minX = nodes.reduce((m, node) => Math.min(m, node.x - node.width/2), 0)-border,
-      minY = nodes.reduce((m, node) => Math.min(m, node.y - node.height/2), 0)-border,
+      maxX = nodes.reduce((m, node) => Math.max(m, node.x + node.width/2), Number.NEGATIVE_INFINITY)+border,
+      maxY = nodes.reduce((m, node) => Math.max(m, node.y + node.height/2), Number.NEGATIVE_INFINITY)+border,
+      minX = nodes.reduce((m, node) => Math.min(m, node.x - node.width/2), Number.POSITIVE_INFINITY)-border,
+      minY = nodes.reduce((m, node) => Math.min(m, node.y - node.height/2), Number.POSITIVE_INFINITY)-border,
       graphWidth = maxX - minX,
       graphHeight = maxY - minY,
       scaleX = window.innerWidth / graphWidth,
       scaleY = window.innerHeight / graphHeight,
       initialScale = Math.min(scaleX, scaleY),
       tx = (window.innerWidth - graphWidth * initialScale)/2 - minX * initialScale,
-      ty = (window.innerHeight - graphHeight * initialScale)/2 + minY * initialScale;
+      ty = (window.innerHeight - graphHeight * initialScale)/2 - minY * initialScale;
     
     svg
       .attr('width', window.innerWidth)
