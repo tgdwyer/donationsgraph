@@ -260,7 +260,7 @@ async function loadGraphML(url:string) {
     });
 
     const 
-      border = 50,
+      border = 10,
       maxX = nodes.reduce((m, node) => Math.max(m, node.x + node.width/2), Number.NEGATIVE_INFINITY)+border,
       maxY = nodes.reduce((m, node) => Math.max(m, node.y + node.height/2), Number.NEGATIVE_INFINITY)+border,
       minX = nodes.reduce((m, node) => Math.min(m, node.x - node.width/2), Number.POSITIVE_INFINITY)-border,
