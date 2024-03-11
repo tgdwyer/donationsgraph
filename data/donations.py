@@ -5,7 +5,33 @@ import textwrap
 import xml.etree.ElementTree as ET
 
 # Read Excel file
-df = pd.read_excel('Annual Donations Made.xlsx')
+df = pd.read_excel('Annual Donations Made.xlsx',sheet_name='aecdata')
+# Federal election year 2022-23
+#filtered_df = df[df['Financial Year'] == '2021-22'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
+#filtered_df = df[df['Financial Year'] == '2018-19'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
+#filtered_df = df[df['Financial Year'] == '2022-23'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
+filtered_df = df[df['Financial Year'] == '2014-15']
+
+partynamelookup = pd.read_excel('Annual Donations Made.xlsx',sheet_name='partynameslookup')
+# Check for duplicate entries in the 'OriginalName' column
+duplicates = partynamelookup['Donation Made To'].duplicated()
+if(duplicates.any()):
+    print("duplicates in partynameslookup sheet:==============")
+    print(partynamelookup['Donation Made To'][duplicates])
+    print("===================================================")
+# Assuming 'partynamelookup' has two columns: one for the original party names and one for the canonical names.
+# Let's say the columns are named 'OriginalName' and 'CanonicalName' respectively.
+
+# First, we would set the index of the lookup DataFrame to be the original names for easy mapping:
+partynamelookup.set_index('Donation Made To', inplace=True)
+
+# Now, we will map the 'Donation Made To' column in df to the canonical names using the lookup DataFrame:
+filtered_df['Party Name'] = filtered_df['Donation Made To'].map(partynamelookup['Party Name'])
+# If there are any names in 'Donation Made To' that don't have a corresponding entry in 'partynamelookup',
+# those entries will have NaN in the 'CanonicalName' column in df. If needed, you can fill these NaNs with the original names:
+filtered_df['Party Name'].fillna(filtered_df['Donation Made To'], inplace=True)
+
+#filtered_df.head()  # To show the first few rows of the dataframe with the new 'CanonicalName' column.
 
 # Replace occurrences
 replacements = {
@@ -68,26 +94,22 @@ replacements = {
     'AUS.*GREEN': 'GREEN-FED'
 }
 
-# Federal election year 2022-23
-#filtered_df = df[df['Financial Year'] == '2021-22'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
-#filtered_df = df[df['Financial Year'] == '2018-19'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
-#filtered_df = df[df['Financial Year'] == '2022-23'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
-filtered_df = df[df['Financial Year'] == '2014-15'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
+# aggregate
+filtered_df = filtered_df.groupby(['Donor Name', 'Party Name'])['Amount'].sum().reset_index()
 
-
-for pattern, replacement in replacements.items():
-    filtered_df['Donation Made To'] = filtered_df['Donation Made To'].str.replace(r'(?i).*' + pattern + '.*', replacement, regex=True)
+# for pattern, replacement in replacements.items():
+#     filtered_df['Donation Made To'] = filtered_df['Donation Made To'].str.replace(r'(?i).*' + pattern + '.*', replacement, regex=True)
 
 # Create a directed graph
 G = nx.DiGraph()
 
 # Add edges and edge weights (donation amounts)
 for index, row in filtered_df.iterrows():
-    G.add_edge(row['Donor Name'], row['Donation Made To'], weight=row['Amount'])
+    G.add_edge(row['Donor Name'], row['Party Name'], weight=row['Amount'])
 
 # Calculate total donations given and received
 donations_given = filtered_df.groupby('Donor Name')['Amount'].sum().to_dict()
-donations_received = filtered_df.groupby('Donation Made To')['Amount'].sum().to_dict()
+donations_received = filtered_df.groupby('Party Name')['Amount'].sum().to_dict()
 
 # Calculate total donations for each node for sizing
 total_donations = {**donations_given, **donations_received}  # Merge two dictionaries

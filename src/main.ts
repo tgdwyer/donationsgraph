@@ -104,7 +104,7 @@ async function loadGraphML(url:string) {
         .domain([Math.min(...nodes.map(n => n.value)), Math.max(...nodes.map(n => n.value))])
         .range([minNodeRadius, maxNodeRadius]);
 
-    function hoverNode(event: { pageX: string; pageY: string; }, node: Node) {
+    function hoverNode(event: { pageX: number; pageY: number; }, node: Node) {
       // Get the edges connected to the node
       const connectedEdges = node.edges;
       connectedEdges.sort((a, b) => b.value - a.value);
@@ -179,11 +179,25 @@ async function loadGraphML(url:string) {
       barChartContainer.append("p")
           .text("Total: $" + node.value.toLocaleString())
           .style("text-align", "center");
-          
+      
+      // Get the dimensions of the bar chart container
+      const containerWidth = barChartContainer.node()?.getBoundingClientRect().width || 0;
+      const containerHeight = barChartContainer.node()?.getBoundingClientRect().height || 0;
+
+      // Calculate the available space on the right and bottom sides of the screen
+      const rightSpace = window.innerWidth - event.pageX;
+      const bottomSpace = window.innerHeight - event.pageY;
+
+      // Shift the infobox if it would go off-screen on the right
+      const left = event.pageX - (containerWidth > rightSpace ? containerWidth: 0);
+      
+      // Shift the infobox if it would go off-screen on the bottom
+      const top = event.pageY - (containerHeight > bottomSpace ? containerHeight: 0);
+
       // Position the bar chart container at the cursor position
       barChartContainer
-        .style("left", event.pageX + "px")
-        .style("top", event.pageY + "px")
+        .style("left", left + "px")
+        .style("top", top + "px")
         .style("visibility", "visible");
     }
 
@@ -261,21 +275,22 @@ async function loadGraphML(url:string) {
 
     const 
       border = 10,
+      [windowWidth, windowHeight] = [window.innerWidth, window.innerHeight],
       maxX = Math.max(...nodes.map(v => v.x + v.width/2))+border,
       maxY = Math.max(...nodes.map(v => v.y + v.height/2))+border,
       minX = Math.min(...nodes.map(v => v.x - v.width/2))-border,
       minY = Math.min(...nodes.map(v => v.y - v.height/2))-border,
-      graphWidth = maxX - minX,
-      graphHeight = maxY - minY,
-      scaleX = window.innerWidth / graphWidth,
-      scaleY = window.innerHeight / graphHeight,
-      initialScale = Math.min(scaleX, scaleY),
-      tx = (window.innerWidth - graphWidth * initialScale)/2 - minX * initialScale,
-      ty = (window.innerHeight - graphHeight * initialScale)/2 - minY * initialScale;
+      [graphWidth, graphHeight] = [maxX - minX, maxY - minY],
+      [scaleX, scaleY] = [windowWidth / graphWidth, windowHeight / graphHeight],
+      scale = Math.min(scaleX, scaleY),
+      [scaledGraphWidth, scaledGraphHeight] = [graphWidth, graphHeight].map(v => v*scale),
+      [centerOffsetX, centerOffsetY] = [windowWidth - scaledGraphWidth, windowHeight - scaledGraphHeight].map(v=>v/2),
+      [windowMinX, windowMinY] = [minX, minY].map(v => v*scale),
+      [tx, ty] = [centerOffsetX - windowMinX, centerOffsetY - windowMinY];
     
     svg
-      .attr('width', window.innerWidth)
-      .attr('height', window.innerHeight);
+      .attr('width', windowWidth)
+      .attr('height', windowHeight);
     
     // Define the zoom behavior
     const zoom = d3.zoom()
@@ -284,7 +299,7 @@ async function loadGraphML(url:string) {
         container.attr('transform', event.transform);
       }); 
     // Apply the zoom behavior to the SVG
-    svg.call(<any>zoom).call(<any>zoom.transform, d3.zoomIdentity.translate(tx,ty).scale(initialScale))
+    svg.call(<any>zoom).call(<any>zoom.transform, d3.zoomIdentity.translate(tx,ty).scale(scale))
 
 
   } catch (error) {
