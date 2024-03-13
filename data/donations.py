@@ -10,9 +10,9 @@ df = pd.read_excel('Annual Donations Made.xlsx',sheet_name='aecdata')
 #filtered_df = df[df['Financial Year'] == '2021-22'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
 #filtered_df = df[df['Financial Year'] == '2018-19'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
 #filtered_df = df[df['Financial Year'] == '2022-23'].groupby(['Donor Name', 'Donation Made To'])['Amount'].sum().reset_index()
-filtered_df = df[df['Financial Year'] == '2014-15']
+filtered_df = df[df['Financial Year'] == '2021-22']
 
-partynamelookup = pd.read_excel('Annual Donations Made.xlsx',sheet_name='partynameslookup')
+partynamelookup = pd.read_excel('Annual Donations Made.xlsx',sheet_name='partynames')
 # Check for duplicate entries in the 'OriginalName' column
 duplicates = partynamelookup['Donation Made To'].duplicated()
 if(duplicates.any()):
@@ -26,7 +26,7 @@ if(duplicates.any()):
 partynamelookup.set_index('Donation Made To', inplace=True)
 
 # Now, we will map the 'Donation Made To' column in df to the canonical names using the lookup DataFrame:
-filtered_df['Party Name'] = filtered_df['Donation Made To'].map(partynamelookup['Party Name'])
+filtered_df['Party Name'] = filtered_df['Donation Made To'].map(partynamelookup['Party Name']).copy()
 # If there are any names in 'Donation Made To' that don't have a corresponding entry in 'partynamelookup',
 # those entries will have NaN in the 'CanonicalName' column in df. If needed, you can fill these NaNs with the original names:
 filtered_df['Party Name'].fillna(filtered_df['Donation Made To'], inplace=True)
@@ -94,8 +94,13 @@ replacements = {
     'AUS.*GREEN': 'GREEN-FED'
 }
 
+filtered_df = filtered_df.merge(pd.read_csv('donors_details.csv'), on='Donor Name', how='left')
+
+
+fromColumn = 'Canonical Industry Sector'
+toColumn = 'Party Name'
 # aggregate
-filtered_df = filtered_df.groupby(['Donor Name', 'Party Name'])['Amount'].sum().reset_index()
+edges_df = filtered_df.groupby([fromColumn, toColumn])['Amount'].sum().reset_index()
 
 # for pattern, replacement in replacements.items():
 #     filtered_df['Donation Made To'] = filtered_df['Donation Made To'].str.replace(r'(?i).*' + pattern + '.*', replacement, regex=True)
@@ -104,12 +109,12 @@ filtered_df = filtered_df.groupby(['Donor Name', 'Party Name'])['Amount'].sum().
 G = nx.DiGraph()
 
 # Add edges and edge weights (donation amounts)
-for index, row in filtered_df.iterrows():
-    G.add_edge(row['Donor Name'], row['Party Name'], weight=row['Amount'])
+for index, row in edges_df.iterrows():
+    G.add_edge(row[fromColumn], row[toColumn], weight=row['Amount'])
 
 # Calculate total donations given and received
-donations_given = filtered_df.groupby('Donor Name')['Amount'].sum().to_dict()
-donations_received = filtered_df.groupby('Party Name')['Amount'].sum().to_dict()
+donations_given = edges_df.groupby(fromColumn)['Amount'].sum().to_dict()
+donations_received = edges_df.groupby(toColumn)['Amount'].sum().to_dict()
 
 # Calculate total donations for each node for sizing
 total_donations = {**donations_given, **donations_received}  # Merge two dictionaries
@@ -130,13 +135,13 @@ for node in G.nodes():
     G.nodes[node]['size'] = scaled_sizes.get(node, min_size)  # Assign scaled size
     G.nodes[node]['amount'] = total_donations.get(node, 0)  # Total donations for tooltip
     G.nodes[node]['color'] = '#c0c0c0' if node in donations_given else '#ffcc00'  # Hex color for yEd
-    if "lib-" in node.lower():
+    if "liberal" in node.lower():
         G.nodes[node]['color'] = '#1e90ff'
-    elif "nat-" in node.lower():
+    elif "national" in node.lower():
         G.nodes[node]['color'] = '#3366ff'
-    elif "alp-" in node.lower():
+    elif "labor" in node.lower():
         G.nodes[node]['color'] = '#ff6600'
-    elif "green-" in node.lower():
+    elif "green" in node.lower():
         G.nodes[node]['color'] = '#32cd32'
 
 # Assign edge attributes for thickness based on donation amount
