@@ -7,10 +7,11 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
     const unsortedlinks: Link[] = data.map(d => ({source: d['Category'], target: getParty(d), value: parseInt(d['Value'].replace(/,/g, ''))}));
     const sortedlinks = unsortedlinks.sort((a, b) => a.source === b.source ? a.target.localeCompare(b.target) : a.source.localeCompare(b.source));
     const links = sortedlinks.reduce((a, l) => {
-        if (a.length === 0 || a[a.length - 1].source !== l.source || a[a.length - 1].target !== l.target) {
+        const prev = a.length - 1;
+        if (prev<0 || a[prev].source !== l.source || a[prev].target !== l.target) {
             a.push(l);
         } else {
-            a[a.length - 1].value += l.value;
+            a[prev].value += l.value;
         }
         return a;
     },[] as Link[])
