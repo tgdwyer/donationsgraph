@@ -8,11 +8,8 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
     const sortedlinks = unsortedlinks.sort((a, b) => a.source === b.source ? a.target.localeCompare(b.target) : a.source.localeCompare(b.source));
     const links = sortedlinks.reduce((a, l) => {
         const prev = a.length - 1;
-        if (prev<0 || a[prev].source !== l.source || a[prev].target !== l.target) {
-            a.push(l);
-        } else {
-            a[prev].value += l.value;
-        }
+        if (prev<0 || a[prev].source !== l.source || a[prev].target !== l.target) a.push(l);
+        else a[prev].value += l.value;
         return a;
     },[] as Link[])
 
