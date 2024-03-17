@@ -82,31 +82,74 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
     function unhover() {
         infoBox.style("visibility", "hidden");
     }
+    function getPartyColour(party:string) {
+        return party == 'Liberal/Nationals' ? 'blue' 
+                      : party == 'Labor' ? 'red'
+                      : party == 'Greens' ? 'green'
+                      :'#fedb89';
+    }
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
             unhover();
         }
     });
+    function createTable(
+        div: any, 
+        columnTitles: string[], 
+        rowData: {rowTitle:string, values:number[]}[], 
+        colourBy: 'ColumnTitles' | 'RowTitles' = 'ColumnTitles')
+    {
+        // sort rowData by sum of value largest to smallest
+        rowData.sort((a,b) => b.values.reduce((a,b) => a+b) - a.values.reduce((a,b) => a+b));
+        const maxValue = Math.max(...rowData[0].values);
+        const table = div.append('table');
+        const tableHead = table.append('thead');
+        const tableBody = table.append('tbody');
+        const headRow = tableHead.append('tr');
+        columnTitles.forEach(title => headRow.append('th').text(title).style('text-align', 'left'));
+        const rowSelection = tableBody.selectAll('tr')
+                .data(rowData)
+                .enter()
+                .append('tr')
+                .each(function(this:any, d) {
+                    const row = d3.select(this);
+                    row.append('td').text(d.rowTitle).style('text-align', 'left');
+                    d.values.forEach((v,i) => {
+                        const cell = row.append('td').style('text-align', 'right'),
+                            width = 40 * v / maxValue,
+                            text = cell.append('div')
+                                .style('z-index', '2')
+                                .style('position', 'relative')
+                                .text(`$${v.toLocaleString()}`),
+                            bb = cell.node()!.getBoundingClientRect(),
+                            colour = getPartyColour(colourBy === 'ColumnTitles' 
+                                                    ? columnTitles[i+1] : d.rowTitle);
+                        text.append('div')
+                        .style('width', `${width}px`)
+                        .style('height', '100%')
+                        .style('background-color', colour)
+                        .style('opacity', '0.3')
+                            .style('position', 'absolute')
+                            .style('top', '0')
+                            .style('left', i === 0 ? `${bb.width - width}px` : '0px')
+                            .style('z-index', '1');
+                    });
+                });
+        return rowSelection;
+    }
     function hoverNode(event: MouseEvent, node: Node) {
         event.stopPropagation();
         infoBox.html("");      
         infoBox.append("h1")
-            .text(`${node.id}, $${node.value.toLocaleString()}`)
+            .text(`${node.id}: $${node.value.toLocaleString()}`)
             .style("text-align", "center");
 
         if(donors.has(node.id)) {
-            const recipients = donors.get(node.id);
-            const table = infoBox.append('table');
-            const tableHead = table.append('thead');
-            const tableBody = table.append('tbody');
-            const headRow = tableHead.append('tr');
-            headRow.append('th').text('Recipient');
-            headRow.append('th').text('Value').style('text-align', 'right');
-            recipients!.forEach((value, key) => {
-                const row = tableBody.append('tr');
-                row.append('td').text(key);
-                row.append('td').text(`$${value.toLocaleString()}`).style('text-align', 'right');
-            })
+            const recipients = donors.get(node.id)!;
+            createTable(infoBox, 
+                ['Recipient', 'Value'], 
+                Array.from(recipients).map(([key, value]) => ({rowTitle: key, values: [value]})),
+                'RowTitles')
         }
 
         if(groupDonors.has(node.id)) {
@@ -125,35 +168,16 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
                     categoryTotals.set(category!, recipientTotal);
                 });
             })
-            const rowData: {category:string, values:number[]}[] = []
+            const rowData: {rowTitle:string, values:number[]}[] = []
             categoryTotals.forEach((recipientTotals, category) => {
                 const r = {rowTitle: category, values: [] as number[]};
                 groupRecipients.forEach(recipient => r.values.push(recipientTotals.get(recipient)!));
                 rowData.push(r);
             });
-            function createTable(div: any, columnTitle: string, rowData: {rowTitle:string, values:number[]}[]) {
-                // sort rowData by sum of value largest to smallest
-                rowData.sort((a,b) => b.values.reduce((a,b) => a+b) - a.values.reduce((a,b) => a+b));
-                const table = div.append('table');
-                const tableHead = table.append('thead');
-                const tableBody = table.append('tbody');
-                const headRow = tableHead.append('tr');
-                headRow.append('th').text(columnTitle).style('text-align', 'left');
-                groupRecipients.forEach(d => headRow.append('th').text(d).style('text-align', 'left'));
-                return tableBody.selectAll('tr')
-                    .data(rowData)
-                    .enter()
-                    .append('tr')
-                    .each(function(d) {
-                        const row = d3.select(this);
-                        row.append('td').text(d.rowTitle).style('text-align', 'left');
-                        d.values.forEach(v => row.append('td').text(`$${v.toLocaleString()}`).style('text-align', 'right'));
-                    });
-            }
 
-            createTable(infoBox, 'Category', rowData)
+            createTable(infoBox, ['Category',...groupRecipients], rowData)
             // add a hover behaviour to each row that displays another popup div with the donor details with that rows category
-            .on('mouseover', function(_:any,d:any) {
+            .on('mouseover', function(this:any, _:any, d:any) {
                 d3.select(this).style('background-color', 'beige');
                 const category = d.rowTitle,
                     donorsWithCategory = ds.filter(d => donorCategory.get(d) === category),
@@ -165,7 +189,7 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
                 detailsBox
                     .style('top', event.pageY + 'px')
                     .html(`<h1>${category}</h1>`);
-                createTable(detailsBox, 'Donor', rowData);
+                createTable(detailsBox, ['Donor',...groupRecipients], rowData);
                 const 
                     detailsBoxWidth = detailsBox.node()!.getBoundingClientRect().width,
                     left = (infoBoxBounds.x + infoBoxBounds.width + detailsBoxWidth) <= window.innerWidth 
@@ -175,7 +199,7 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
                     .style('left', left + 'px')
                     .style('visibility', 'visible')
             })
-            .on('mouseout', function() {                
+            .on('mouseout', function(this:any) {                
                 detailsBox.style('visibility', 'hidden')
                 d3.select(this).style('background-color', 'white');
             });
@@ -201,11 +225,7 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
     }
     links.forEach(l => {
         addNode(l.source,l.value, 'grey');
-        const partyColour = l.target == 'Liberal/Nationals' ? 'blue' 
-                      :l.target == 'Labor' ? 'red'
-                      :l.target == 'Greens' ? 'green'
-                      :'#fedb89';
-        addNode(l.target,l.value, partyColour);
+        addNode(l.target,l.value, getPartyColour(l.target));
     })
     const nodes = Array.from(nodeMap.values());
 
@@ -222,8 +242,8 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
 
     // Create a D3 force simulation
     const simulation = d3.forceSimulation(<any>nodes)
-        .force('link', d3.forceLink(links).id((d:any) => d.id).distance(100))
-        .force('charge', d3.forceManyBody().strength(-100).distanceMax(400))
+        .force('link', d3.forceLink(links).id((d:any) => d.id).distance(window.innerWidth/8))
+        .force('charge', d3.forceManyBody().strength(-100).distanceMax(0.7*window.innerWidth))
         .force('center', d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2).strength(1.7));
 
     const scale = d3.scaleSqrt()
