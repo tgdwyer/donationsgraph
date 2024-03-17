@@ -117,9 +117,8 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
                 d.values.forEach(v => 
                     row.append('td').style('text-align', 'right')
                        .append('div')
-                            .style('z-index', '2')
-                            .style('position', 'relative')
-                            .text(`$${v.toLocaleString()}`));
+                        .style('position', 'relative')
+                        .text(`$${v.toLocaleString()}`));
             })
             .each(function(this:HTMLTableRowElement, d) {
                 const cells = d3.select(this).selectAll('td').filter((_,i) => i>0);
@@ -138,8 +137,7 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
                         .style('opacity', '0.3')
                         .style('position', 'absolute')
                         .style('top', '0')
-                        .style('left', i > 0 ? '0px' : `${cellWidth - barWidth}px`)
-                        .style('z-index', '1');
+                        .style('left', i > 0 ? '0px' : `${cellWidth - barWidth}px`);
                 })
             });
         return rowSelection;
