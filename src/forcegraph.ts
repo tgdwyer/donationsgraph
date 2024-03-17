@@ -13,6 +13,7 @@ const infoBox = d3.select("body").append("div")
     .style("visibility", "hidden");
 const detailsBox = d3.select("body").append("div")
     .attr("class", "infoBox")
+    .style("background-color", "beige")
     .style("position", "absolute")
     .style("visibility", "hidden");
 
@@ -86,7 +87,8 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
             unhover();
         }
     });
-    function hoverNode(event: { pageX: number; pageY: number; }, node: Node) {
+    function hoverNode(event: MouseEvent, node: Node) {
+        event.stopPropagation();
         infoBox.html("");      
         infoBox.append("h1")
             .text(`${node.id}, $${node.value.toLocaleString()}`)
@@ -123,64 +125,55 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
                     categoryTotals.set(category!, recipientTotal);
                 });
             })
-            const table = infoBox.append('table');
-            const tableHead = table.append('thead');
-            const tableBody = table.append('tbody');
-
-            const headRow = tableHead.append('tr');
-            headRow.append('th').text('Category').style('text-align', 'left');
-            groupRecipients.forEach(d => headRow.append('th').text(d).style('text-align', 'left'));
             const rowData: {category:string, values:number[]}[] = []
             categoryTotals.forEach((recipientTotals, category) => {
-                const r = {category: category, values: [] as number[]};
+                const r = {rowTitle: category, values: [] as number[]};
                 groupRecipients.forEach(recipient => r.values.push(recipientTotals.get(recipient)!));
                 rowData.push(r);
             });
-            // sort rowData by sum of value largest to smallest
-            rowData.sort((a,b) => b.values.reduce((a,b) => a+b) - a.values.reduce((a,b) => a+b));
-            tableBody.selectAll('tr')
-                .data(rowData)
-                .enter()
-                .append('tr')
-                .each(function(d) {
-                    const row = d3.select(this);
-                    row.append('td').text(d.category).style('text-align', 'left');
-                    d.values.forEach(v => row.append('td').text(`$${v.toLocaleString()}`).style('text-align', 'right'));
-                })
-            // add a hover behaviour to each row that displays another popup div with the donor details with that rows category
-            .on('mouseover', function(_,d) {
-                d3.select(this).style('background-color', 'beige');
-                
-                const category = d.category;
-                const donorsWithCategory = ds.filter(d => donorCategory.get(d) === category);
-                const rowData =
-                    donorsWithCategory.map(d => 
-                        ({donor: d, values: Array.from(groupRecipients)
-                            .map(r => donors.get(d)!.get(r) || 0)}));                
+            function createTable(div: any, columnTitle: string, rowData: {rowTitle:string, values:number[]}[]) {
                 // sort rowData by sum of value largest to smallest
                 rowData.sort((a,b) => b.values.reduce((a,b) => a+b) - a.values.reduce((a,b) => a+b));
-                const infoBoxWidth = infoBox.node()!.getBoundingClientRect().width;
-                detailsBox
-                    .style('visibility', 'visible')
-                    .style('left', event.pageX + infoBoxWidth + 'px')
-                    .style('top', event.pageY + 'px')
-                    .html(`<h1>${d.category}</h1>`);                
-                const table = detailsBox.append('table');
+                const table = div.append('table');
                 const tableHead = table.append('thead');
-                const headRow = tableHead.append('tr');            
-                headRow.append('th').text('Category').style('text-align', 'left');
+                const tableBody = table.append('tbody');
+                const headRow = tableHead.append('tr');
+                headRow.append('th').text(columnTitle).style('text-align', 'left');
                 groupRecipients.forEach(d => headRow.append('th').text(d).style('text-align', 'left'));
-     
-                const tableBody = table.append('tbody');            
-                tableBody.selectAll('tr')
+                return tableBody.selectAll('tr')
                     .data(rowData)
                     .enter()
                     .append('tr')
                     .each(function(d) {
                         const row = d3.select(this);
-                        row.append('td').text(d.donor).style('text-align', 'left');
+                        row.append('td').text(d.rowTitle).style('text-align', 'left');
                         d.values.forEach(v => row.append('td').text(`$${v.toLocaleString()}`).style('text-align', 'right'));
-                    })
+                    });
+            }
+
+            createTable(infoBox, 'Category', rowData)
+            // add a hover behaviour to each row that displays another popup div with the donor details with that rows category
+            .on('mouseover', function(_:any,d:any) {
+                d3.select(this).style('background-color', 'beige');
+                const category = d.rowTitle,
+                    donorsWithCategory = ds.filter(d => donorCategory.get(d) === category),
+                    rowData =
+                    donorsWithCategory.map(d => 
+                        ({rowTitle: d, values: Array.from(groupRecipients)
+                            .map(r => donors.get(d)!.get(r) || 0)})),
+                    infoBoxBounds = infoBox.node()!.getBoundingClientRect();
+                detailsBox
+                    .style('top', event.pageY + 'px')
+                    .html(`<h1>${category}</h1>`);
+                createTable(detailsBox, 'Donor', rowData);
+                const 
+                    detailsBoxWidth = detailsBox.node()!.getBoundingClientRect().width,
+                    left = (infoBoxBounds.x + infoBoxBounds.width + detailsBoxWidth) <= window.innerWidth 
+                            ? infoBoxBounds.x + infoBoxBounds.width
+                            : infoBoxBounds.x - detailsBoxWidth
+                detailsBox
+                    .style('left', left + 'px')
+                    .style('visibility', 'visible')
             })
             .on('mouseout', function() {                
                 detailsBox.style('visibility', 'hidden')
@@ -219,7 +212,8 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
     // Create a SVG container for the graph
     const svg = d3.select('body').append('svg')
         .attr('width', window.innerWidth)
-        .attr('height', window.innerHeight);
+        .attr('height', window.innerHeight)
+        .on('mouseover', unhover);
     const container = svg.append('g');
     // Define the zoom behavior
     const zoom = d3.zoom()
@@ -278,9 +272,7 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
             .on('start', dragStarted)
             .on('drag', dragged)
             .on('end', dragEnded))
-        .on('click', function() { pinNode(this) })
-        .on('mouseover', hoverNode)
-        //.on('mouseout', unhover);
+            .on('mouseover', hoverNode);
 
     function pinNodeId(id: string, x:number, y:number) {
         const n = d3.select('circle[id="' + id + '"]')
