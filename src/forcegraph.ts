@@ -11,6 +11,10 @@ const infoBox = d3.select("body").append("div")
     .attr("class", "infoBox")
     .style("position", "absolute")
     .style("visibility", "hidden");
+const detailsBox = d3.select("body").append("div")
+    .attr("class", "infoBox")
+    .style("position", "absolute")
+    .style("visibility", "hidden");
 
 function dedupeLinks(unsortedlinks: Link[]) {
     const sortedlinks = unsortedlinks.sort((a, b) => a.source === b.source ? a.target.localeCompare(b.target) : a.source.localeCompare(b.source));
@@ -77,6 +81,11 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
     function unhover() {
         infoBox.style("visibility", "hidden");
     }
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            unhover();
+        }
+    });
     function hoverNode(event: { pageX: number; pageY: number; }, node: Node) {
         infoBox.html("");      
         infoBox.append("h1")
@@ -101,13 +110,17 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
         if(groupDonors.has(node.id)) {
             const ds = groupDonors.get(node.id)!;
             
-            let categoryTotals = new Map<string, number>();
+            const categoryTotals = new Map<string, Map<string,number>>();
+            const groupRecipients = new Set<string>();
             ds.forEach(d => {
                 const recipients = donors.get(d);
                 recipients!.forEach((value, recipient) => {
-                    const categoryRecipient = donorCategory.get(d)+'|'+recipient;
-                    const total = categoryTotals.get(categoryRecipient) || 0;
-                    categoryTotals.set(categoryRecipient, total + value);
+                    groupRecipients.add(recipient);
+                    const category = donorCategory.get(d);
+                    const recipientTotal = categoryTotals.get(category!) || new Map<string,number>();
+                    const total = recipientTotal.get(recipient) || 0;
+                    recipientTotal.set(recipient, total + value);
+                    categoryTotals.set(category!, recipientTotal);
                 });
             })
             const table = infoBox.append('table');
@@ -115,16 +128,63 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
             const tableBody = table.append('tbody');
 
             const headRow = tableHead.append('tr');
-            headRow.append('th').text('Category');
-            headRow.append('th').text('Recipient');
-            headRow.append('th').text('Value').style('text-align', 'right');
-
-            categoryTotals.forEach((value, key) => {
-                const [category, recipient] = key.split('|');
-                const row = tableBody.append('tr');
-                row.append('td').text(category);
-                row.append('td').text(recipient);
-                row.append('td').text(`$${value.toLocaleString()}`).style('text-align', 'right');
+            headRow.append('th').text('Category').style('text-align', 'left');
+            groupRecipients.forEach(d => headRow.append('th').text(d).style('text-align', 'left'));
+            const rowData: {category:string, values:number[]}[] = []
+            categoryTotals.forEach((recipientTotals, category) => {
+                const r = {category: category, values: [] as number[]};
+                groupRecipients.forEach(recipient => r.values.push(recipientTotals.get(recipient)!));
+                rowData.push(r);
+            });
+            // sort rowData by sum of value largest to smallest
+            rowData.sort((a,b) => b.values.reduce((a,b) => a+b) - a.values.reduce((a,b) => a+b));
+            tableBody.selectAll('tr')
+                .data(rowData)
+                .enter()
+                .append('tr')
+                .each(function(d) {
+                    const row = d3.select(this);
+                    row.append('td').text(d.category).style('text-align', 'left');
+                    d.values.forEach(v => row.append('td').text(`$${v.toLocaleString()}`).style('text-align', 'right'));
+                })
+            // add a hover behaviour to each row that displays another popup div with the donor details with that rows category
+            .on('mouseover', function(_,d) {
+                d3.select(this).style('background-color', 'beige');
+                
+                const category = d.category;
+                const donorsWithCategory = ds.filter(d => donorCategory.get(d) === category);
+                const rowData =
+                    donorsWithCategory.map(d => 
+                        ({donor: d, values: Array.from(groupRecipients)
+                            .map(r => donors.get(d)!.get(r) || 0)}));                
+                // sort rowData by sum of value largest to smallest
+                rowData.sort((a,b) => b.values.reduce((a,b) => a+b) - a.values.reduce((a,b) => a+b));
+                const infoBoxWidth = infoBox.node()!.getBoundingClientRect().width;
+                detailsBox
+                    .style('visibility', 'visible')
+                    .style('left', event.pageX + infoBoxWidth + 'px')
+                    .style('top', event.pageY + 'px')
+                    .html(`<h1>${d.category}</h1>`);                
+                const table = detailsBox.append('table');
+                const tableHead = table.append('thead');
+                const headRow = tableHead.append('tr');            
+                headRow.append('th').text('Category').style('text-align', 'left');
+                groupRecipients.forEach(d => headRow.append('th').text(d).style('text-align', 'left'));
+     
+                const tableBody = table.append('tbody');            
+                tableBody.selectAll('tr')
+                    .data(rowData)
+                    .enter()
+                    .append('tr')
+                    .each(function(d) {
+                        const row = d3.select(this);
+                        row.append('td').text(d.donor).style('text-align', 'left');
+                        d.values.forEach(v => row.append('td').text(`$${v.toLocaleString()}`).style('text-align', 'right'));
+                    })
+            })
+            .on('mouseout', function() {                
+                detailsBox.style('visibility', 'hidden')
+                d3.select(this).style('background-color', 'white');
             });
         }
 
@@ -167,13 +227,13 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
         .on('zoom', event => container.attr('transform', event.transform)); 
 
     // Create a D3 force simulation
-    const simulation = d3.forceSimulation(nodes)
-        .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+    const simulation = d3.forceSimulation(<any>nodes)
+        .force('link', d3.forceLink(links).id((d:any) => d.id).distance(100))
         .force('charge', d3.forceManyBody().strength(-100).distanceMax(400))
         .force('center', d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2).strength(1.7));
 
     const scale = d3.scaleSqrt()
-        .domain([0, d3.max(links, l => l.value)])
+        .domain(<any>[0, d3.max(links, l => l.value)])
         .range([3, 20])
     // Create SVG elements for nodes and links
     const link = container.append('g')
@@ -184,9 +244,8 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
             return scale(d.value);
         });
     // Function to handle node click event
-    function pinNode(e: MouseEvent) {
-        const circle = e.target as SVGCircleElement;
-        const node = d3.select(circle).datum() as Node;
+    function pinNode(circle: SVGCircleElement) {
+        const node = d3.select(circle).datum() as any;
         if (node.pinned) {
             // Node is already pinned, unpin it
             node.fx = null;
@@ -208,7 +267,8 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
         .selectAll('circle')
         .data(nodes)
         .enter().append('circle')
-        .attr('r', d => { 
+        .attr('id', (d:any) => d.id)
+        .attr('r', (d:any) => { 
             const r = scale(d.value);
             d.radius = r;
             return r;
@@ -218,22 +278,31 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
             .on('start', dragStarted)
             .on('drag', dragged)
             .on('end', dragEnded))
-        .on('click', pinNode)
+        .on('click', function() { pinNode(this) })
         .on('mouseover', hoverNode)
-        .on('mouseout', unhover);
+        //.on('mouseout', unhover);
 
-    function dragStarted(event, d) {
+    function pinNodeId(id: string, x:number, y:number) {
+        const n = d3.select('circle[id="' + id + '"]')
+        n.datum().x = x;
+        n.datum().y = y;
+        pinNode(n.node() as SVGCircleElement);
+    }
+    pinNodeId('Labor', innerWidth/3, innerHeight/2);
+    pinNodeId('Liberal/Nationals', 2*innerWidth/3, innerHeight/2);
+
+    function dragStarted(event:any, d:any) {
         if (!event.active) simulation.alphaTarget(0.3).restart();
         d.fx = d.x;
         d.fy = d.y;
     }
 
-    function dragged(event, d) {
+    function dragged(event:any, d:any) {
         d.fx = event.x;
         d.fy = event.y;
     }
 
-    function dragEnded(event, d) {
+    function dragEnded(event:any, d:any) {
         if (!event.active) simulation.alphaTarget(0);
         if (!d.pinned) {
             d.fx = null;
@@ -247,30 +316,30 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
         .data(nodes)
         .enter().append('text')
         .text(d => d.id)
-        .attr('x', d => d.x + 10)
-        .attr('y', d => d.y + 5);
+        .attr('x', (d:any) => d.x + 10)
+        .attr('y', (d:any) => d.y + 5);
 
     // Define the behavior of the nodes and links in the simulation
     simulation.on('tick', () => {
-        link.attr('x1', d => d.source.x)
-            .attr('y1', d => d.source.y)
-            .attr('x2', d => d.target.x)
-            .attr('y2', d => d.target.y);
+        link.attr('x1', (d:any) => d.source.x)
+            .attr('y1', (d:any) => d.source.y)
+            .attr('x2', (d:any) => d.target.x)
+            .attr('y2', (d:any) => d.target.y);
 
-        node.attr('cx', d => d.x)
-            .attr('cy', d => d.y);
+        node.attr('cx', (d:any) => d.x)
+            .attr('cy', (d:any) => d.y);
             
-        labels.attr('x', d => d.x + 10)
-            .attr('y', d => d.y + 5);
+        labels.attr('x', (d:any) => d.x + 10)
+            .attr('y', (d:any) => d.y + 5);
         
     });
     simulation.on('end', () => {
         const border = 10,
             [windowWidth, windowHeight] = [window.innerWidth, window.innerHeight],
             maxX = Math.max(...Array.from(labels.nodes()).map(l => l.getBBox().x + l.getBBox().width + border)),
-            maxY = Math.max(...nodes.map(v => v.y + v.radius))+border,
-            minX = Math.min(...nodes.map(v => v.x - v.radius))-border,
-            minY = Math.min(...nodes.map(v => v.y - v.radius))-border,
+            maxY = Math.max(...nodes.map((v:any) => v.y + v.radius))+border,
+            minX = Math.min(...nodes.map((v:any) => v.x - v.radius))-border,
+            minY = Math.min(...nodes.map((v:any) => v.y - v.radius))-border,
             [graphWidth, graphHeight] = [maxX - minX, maxY - minY],
             [scaleX, scaleY] = [windowWidth / graphWidth, windowHeight / graphHeight],
             scale = Math.min(scaleX, scaleY),
