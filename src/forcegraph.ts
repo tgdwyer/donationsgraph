@@ -284,8 +284,8 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
 
     function pinNodeId(id: string, x:number, y:number) {
         const n = d3.select('circle[id="' + id + '"]')
-        n.datum().x = x;
-        n.datum().y = y;
+        const d = n.datum() as any;
+        d.x = x; d.y = y;
         pinNode(n.node() as SVGCircleElement);
     }
     pinNodeId('Labor', innerWidth/3, innerHeight/2);
