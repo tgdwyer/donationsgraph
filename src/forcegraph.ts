@@ -86,7 +86,7 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
         return party == 'Liberal/Nationals' ? 'blue' 
                       : party == 'Labor' ? 'red'
                       : party == 'Greens' ? 'green'
-                      :'#fedb89';
+                      :'#f4a581';
     }
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
@@ -108,33 +108,40 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
         const headRow = tableHead.append('tr');
         columnTitles.forEach(title => headRow.append('th').text(title).style('text-align', 'left'));
         const rowSelection = tableBody.selectAll('tr')
-                .data(rowData)
-                .enter()
-                .append('tr')
-                .each(function(this:any, d) {
-                    const row = d3.select(this);
-                    row.append('td').text(d.rowTitle).style('text-align', 'left');
-                    d.values.forEach((v,i) => {
-                        const cell = row.append('td').style('text-align', 'right'),
-                            width = 40 * v / maxValue,
-                            text = cell.append('div')
-                                .style('z-index', '2')
-                                .style('position', 'relative')
-                                .text(`$${v.toLocaleString()}`),
-                            bb = cell.node()!.getBoundingClientRect(),
-                            colour = getPartyColour(colourBy === 'ColumnTitles' 
-                                                    ? columnTitles[i+1] : d.rowTitle);
-                        text.append('div')
-                        .style('width', `${width}px`)
+            .data(rowData)
+            .enter()
+            .append('tr')
+            .each(function(this:HTMLTableRowElement, d) {
+                const row = d3.select(this);
+                row.append('td').text(d.rowTitle).style('text-align', 'left');
+                d.values.forEach(v => 
+                    row.append('td').style('text-align', 'right')
+                       .append('div')
+                            .style('z-index', '2')
+                            .style('position', 'relative')
+                            .text(`$${v.toLocaleString()}`));
+            })
+            .each(function(this:HTMLTableRowElement, d) {
+                const cells = d3.select(this).selectAll('td').filter((_,i) => i>0);
+                let minValColWidth = Math.min(...cells.nodes().map((c:any)=>c.getBoundingClientRect().width))
+                cells.each(function(this:any, d:any, i:number) {
+                    const cell = d3.select(this),
+                        cellWidth = cell.node()!.getBoundingClientRect().width,
+                        colour = getPartyColour(colourBy === 'ColumnTitles' 
+                                                ? columnTitles[i+1] : d.rowTitle),
+                        v = d.values[i],
+                        barWidth = minValColWidth * v / maxValue;
+                    cell.select('div').append('div')
+                        .style('width', `${barWidth}px`)
                         .style('height', '100%')
                         .style('background-color', colour)
                         .style('opacity', '0.3')
-                            .style('position', 'absolute')
-                            .style('top', '0')
-                            .style('left', i === 0 ? `${bb.width - width}px` : '0px')
-                            .style('z-index', '1');
-                    });
-                });
+                        .style('position', 'absolute')
+                        .style('top', '0')
+                        .style('left', i > 0 ? '0px' : `${cellWidth - barWidth}px`)
+                        .style('z-index', '1');
+                })
+            });
         return rowSelection;
     }
     function hoverNode(event: MouseEvent, node: Node) {
