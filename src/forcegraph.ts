@@ -259,9 +259,8 @@ d3.csv('data/democracyforsaleFY2022.csv').then((data) => {
         .selectAll('line')
         .data(links)
         .enter().append('line')
-        .style('stroke-width', d => {;
-            return scale(d.value);
-        });
+        .style('stroke-width', d=>scale(d.value))
+        .style('stroke', d=>getPartyColour(d.target.id));
     // Function to handle node click event
     function pinNode(circle: SVGCircleElement) {
         const node = d3.select(circle).datum() as any;
