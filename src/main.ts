@@ -82,7 +82,9 @@ async function loadGraphML(url:string) {
     });
 
     // Draw with D3
-    const svg = d3.select("svg");
+    const svg = d3.select('body').append('svg')
+      .attr('width', window.innerWidth)
+      .attr('height', window.innerHeight)
     const container = svg.append("g");
     const edgeContainer = container.append("g");
     const nodeContainer = container.append("g");
